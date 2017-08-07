@@ -1,6 +1,5 @@
 # stacked auto encoder
-# keras/example/mnist_swwae.py的实现是真正的逐层贪婪训练的栈式自编码器
-# 不过过于复杂，这里没有用逐层贪婪训练，实现了最简单的栈式自编码器，采用全连接层
+# 分析1，仅有三层显得太浅，可以增加隐层数目
 
 import keras.backend as K
 from keras.datasets import mnist
@@ -8,9 +7,10 @@ from keras.layers import Input,Dense
 from keras.models import Model
 import numpy as np
 import matplotlib.pyplot as plt
+from keras import regularizers
 
 epochs=7
-batch_size=128
+batch_size=256
 
 
 # load data
@@ -34,9 +34,14 @@ encoding_dim=32
 # ----------输入层
 input_img=Input(shape=(784,))
 # ----------编码层
-encoded=Dense(encoding_dim,activation='relu')(input_img)
+encoded=Dense(128,activation='relu')(input_img)
+encoded=Dense(64,activation='relu')(encoded)
+encoded=Dense(32,activation='relu')(encoded)
 # ----------解码层
-decoded=Dense(784,activation='sigmoid')(encoded)
+decoded=Dense(64,activation='relu')(encoded)
+decoded=Dense(128,activation='relu')(decoded)
+# ----------输出层
+decoded=Dense(784,activation='sigmoid')(decoded)
 
 # 自编码器模型定义
 autoencoder=Model(input_img,decoded)
@@ -49,10 +54,10 @@ autoencoder.compile(optimizer='adam',loss='binary_crossentropy')
 # 训练
 autoencoder.fit(x_train,
                 x_train,
-                verbose=True,
                 epochs=epochs,
                 batch_size=batch_size)
 
+# encode and decode some imgs
 decoded_imgs=autoencoder.predict(x_test)
 
 # 可视化
@@ -79,7 +84,7 @@ for i in range(n):
 
 plt.show()
 
-# epoch=7，loss=0.0953
+# epoch=7的时候，loss=0.3121
 
 
 

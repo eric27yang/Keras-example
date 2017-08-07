@@ -1,6 +1,7 @@
 # stacked auto encoder
-# keras/example/mnist_swwae.py的实现是真正的逐层贪婪训练的栈式自编码器
-# 不过过于复杂，这里没有用逐层贪婪训练，实现了最简单的栈式自编码器，采用全连接层
+# 分析0，一般而言自编码器学到的是PCA的一个近似
+# 但是如果对因隐层施加稀疏性约束的话，会得到更为紧凑的表达，只有一小部分神经元将被激活。
+# 然而始终无法训练到0的水平，甚至不在一个数量级
 
 import keras.backend as K
 from keras.datasets import mnist
@@ -8,9 +9,10 @@ from keras.layers import Input,Dense
 from keras.models import Model
 import numpy as np
 import matplotlib.pyplot as plt
+from keras import regularizers
 
 epochs=7
-batch_size=128
+batch_size=256
 
 
 # load data
@@ -34,12 +36,23 @@ encoding_dim=32
 # ----------输入层
 input_img=Input(shape=(784,))
 # ----------编码层
-encoded=Dense(encoding_dim,activation='relu')(input_img)
+# 增加L1正则项
+encoded=Dense(encoding_dim,activation='relu',activity_regularizer=regularizers.l1(0.01))(input_img)
 # ----------解码层
 decoded=Dense(784,activation='sigmoid')(encoded)
 
 # 自编码器模型定义
 autoencoder=Model(input_img,decoded)
+
+# 编码器定义
+encoder=Model(input_img,encoded)
+
+# 解码器定义
+# 编码层的输出是32维
+encoded_input=Input(shape=(encoding_dim,))
+# 解码层
+decoder_layer=autoencoder.layers[-1]
+decoder=Model(encoded_input,decoder_layer(encoded_input))
 
 autoencoder.summary()
 
@@ -49,11 +62,12 @@ autoencoder.compile(optimizer='adam',loss='binary_crossentropy')
 # 训练
 autoencoder.fit(x_train,
                 x_train,
-                verbose=True,
                 epochs=epochs,
                 batch_size=batch_size)
 
-decoded_imgs=autoencoder.predict(x_test)
+# encode and decode some imgs
+encoded_imgs=encoder.predict(x_test)
+decoded_imgs=decoder.predict(encoded_imgs)
 
 # 可视化
 # 可视化几个图
@@ -79,7 +93,7 @@ for i in range(n):
 
 plt.show()
 
-# epoch=7，loss=0.0953
+# epoch=7的时候，loss=0.3121
 
 
 
