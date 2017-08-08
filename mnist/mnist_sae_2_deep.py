@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from keras import regularizers
 
-epochs=7
+epochs=20
 batch_size=256
 
 
@@ -84,7 +84,7 @@ for i in range(n):
 
 plt.show()
 
-# epoch=7的时候，loss=0.3121
+# epoch=20，loss=0.0928
 
 
 

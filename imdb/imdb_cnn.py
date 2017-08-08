@@ -43,10 +43,15 @@ model=Sequential()
 model.add(Embedding(max_features,embedding_dims,input_length=maxlen))
 model.add(Dropout(0.2))
 # -------------卷积层
+# padding：补0策略，为“valid”, “same” 或“causal”
+# “causal”将产生因果（膨胀的）卷积，即output[t]不依赖于input[t+1：]。当对不能违反时间顺序的时序信号建模时有用。
+# “valid”代表只进行有效的卷积，即对边界数据不处理。
+# “same”代表保留边界处的卷积结果，通常会导致输出shape与输入shape相同。
 model.add(Conv1D(filters=250,kernel_size=3,padding='valid',activation='relu',strides=1))
 # -------------池化层
 model.add(GlobalMaxPooling1D())
-# ------------全连接层
+# -------------全连接层
+# 因为是1维的，所以不需要加flatten层
 model.add(Dense(250,activation='relu'))
 model.add(Dropout(0.2))
 # ------------输出层

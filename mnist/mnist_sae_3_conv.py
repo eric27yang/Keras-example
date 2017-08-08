@@ -1,27 +1,25 @@
 # stacked auto encoder
-# keras/example/mnist_swwae.py的实现是真正的逐层贪婪训练的栈式自编码器
-# 不过过于复杂，这里没有用逐层贪婪训练，实现了最简单的栈式自编码器，采用全连接层
+# 基于卷积神经网络的自动编码器
+# 同时添加了tensorboard来可视化训练误差
 
 import keras.backend as K
 from keras.datasets import mnist
-from keras.layers import Input,Dense
+from keras.layers import Input,Dense,Conv2D,MaxPooling2D,UpSampling2D
 from keras.models import Model
 import numpy as np
 import matplotlib.pyplot as plt
 from keras.callbacks import TensorBoard
 
-epochs=10
+epochs=50
 batch_size=128
 
 
 # load data
 # 数据格式为通道在前
-K.set_image_data_format('channels_first')
-
 (x_train,_),(x_test,_)=mnist.load_data()
 
-x_train=x_train.reshape((x_train.shape[0],np.prod(x_train.shape[1:])))
-x_test=x_test.reshape((x_test.shape[0],np.prod(x_test.shape[1:])))
+x_train=x_train.reshape((len(x_train),28,28,1))
+x_test=x_test.reshape((len(x_test),28,28,1))
 x_train=x_train.astype('float32')
 x_test=x_test.astype('float32')
 x_train/=255
@@ -33,11 +31,28 @@ print('#Get test samples',x_test.shape[0])
 encoding_dim=32
 
 # ----------输入层
-input_img=Input(shape=(784,))
+input_img=Input(shape=(28,28,1))
 # ----------编码层
-encoded=Dense(encoding_dim,activation='relu')(input_img)
+# padding：补0策略，为“valid”, “same” 或“causal”
+# “causal”将产生因果（膨胀的）卷积，即output[t]不依赖于input[t+1：]。当对不能违反时间顺序的时序信号建模时有用。
+# “valid”代表只进行有效的卷积，即对边界数据不处理。
+# “same”代表保留边界处的卷积结果，通常会导致输出shape与输入shape相同。
+x=Conv2D(16,(3,3),activation='relu',padding='same')(input_img)
+x=MaxPooling2D((2,2),padding='same')(x)
+x=Conv2D(8,(3,3),activation='relu',padding='same')(x)
+x=MaxPooling2D((2,2),padding='same')(x)
+x=Conv2D(8,(3,3),activation='relu',padding='same')(x)
+encoded=MaxPooling2D((2,2),padding='same')(x)
 # ----------解码层
-decoded=Dense(784,activation='sigmoid')(encoded)
+x=Conv2D(8,(3,3),activation='relu',padding='same')(encoded)
+x=UpSampling2D((2,2))(x)
+x=Conv2D(8,(3,3),activation='relu',padding='same')(x)
+x=UpSampling2D((2,2))(x)
+x=Conv2D(16,(3,3),activation='relu')(x)
+x=UpSampling2D((2,2))(x)
+
+# ----------输出层
+decoded=Conv2D(1,(3,3),activation='sigmoid',padding='same')(x)
 
 # 自编码器模型定义
 autoencoder=Model(input_img,decoded)
@@ -48,14 +63,16 @@ autoencoder.summary()
 autoencoder.compile(optimizer='adam',loss='binary_crossentropy')
 
 # 训练
+# 在终端中，输入tensorboard --logdir=/tmp/autoencoder，打开tensorboard服务器
+# 加入回调
 autoencoder.fit(x_train,
                 x_train,
-                verbose=True,
                 epochs=epochs,
                 batch_size=batch_size,
                 validation_data=(x_test,x_test),
                 callbacks=[TensorBoard(log_dir='/tmp/autoencoder')])
 
+# encode and decode some imgs
 decoded_imgs=autoencoder.predict(x_test)
 
 # 可视化
@@ -82,7 +99,7 @@ for i in range(n):
 
 plt.show()
 
-# epoch=10，loss不再下降，loss=0.0941
+# epoch=50，loss=0.0920
 
 
 
